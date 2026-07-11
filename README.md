@@ -16,6 +16,8 @@ step, no dependencies.
   temporarily by clicking the 👁 button.
 - **Remove** a header (🗑).
 - **Badge** on the toolbar icon showing how many headers are currently enabled.
+  When a domain restriction is set, the badge only appears on tabs whose site
+  matches that domain — the same sites the headers are actually applied to.
 - Dark-themed popup.
 
 By default headers apply globally: every site, every tab, and every request type (page

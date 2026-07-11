@@ -3,7 +3,7 @@
   "name": "Mu Header",
   "version": "1.0.0",
   "description": "Add custom HTTP headers to all requests. Toggle headers on/off, mask sensitive values, and see a badge with the active count.",
-  "permissions": ["declarativeNetRequest", "storage"],
+  "permissions": ["declarativeNetRequest", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
