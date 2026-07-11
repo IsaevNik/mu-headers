@@ -68,6 +68,41 @@ function buildCondition(domain) {
   return { regexFilter, resourceTypes: RESOURCE_TYPES };
 }
 
+// Does `url` fall under the domain filter? Mirrors buildCondition's matching
+// rules so the badge appears on exactly the sites headers are applied to.
+//   ""                 -> every site matches
+//   "example.com"      -> exactly example.com (NOT its subdomains), any port
+//   "*.example.com"    -> subdomains of example.com only (NOT the bare host)
+//   "localhost:8000"   -> localhost on port 8000 only
+// Returns false for non-http(s) URLs (chrome://, about:, file://, ...).
+function urlMatchesDomain(url, domain) {
+  if (domain === "") return true;
+  if (typeof url !== "string") return false;
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+
+  const colon = domain.lastIndexOf(":");
+  const host = colon === -1 ? domain : domain.slice(0, colon);
+  const port = colon === -1 ? "" : domain.slice(colon + 1);
+
+  // The URL's effective port: explicit port, or the protocol default.
+  const urlPort = parsed.port || (parsed.protocol === "https:" ? "443" : "80");
+  if (port !== "" && urlPort !== port) return false;
+
+  const urlHost = parsed.hostname.toLowerCase();
+  if (host.startsWith("*.")) {
+    const base = host.slice(2).toLowerCase();
+    return urlHost.endsWith("." + base);
+  }
+  return urlHost === host.toLowerCase();
+}
+
 // Build a DNR rule for one enabled header. The header's stable `id` doubles
 // as the DNR rule id. `condition` is shared across all rules in a rebuild.
 function toRule(header, condition) {
@@ -105,19 +140,44 @@ async function rebuildRules() {
   return enabled.length;
 }
 
-async function updateBadge(enabledCount) {
-  const count =
-    typeof enabledCount === "number"
-      ? enabledCount
-      : (await getHeaders()).filter((h) => h.enabled && h.name).length;
+// Set the badge text for a single tab. The count is shown only when the tab's
+// URL falls under the active domain restriction; otherwise the tab shows no
+// badge, even though the header rules themselves are unchanged.
+async function updateBadgeForTab(tab, count, domain) {
+  if (!tab || typeof tab.id !== "number" || tab.id < 0) return;
 
-  await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
+  const show = count > 0 && urlMatchesDomain(tab.url, domain);
+  try {
+    await chrome.action.setBadgeText({
+      tabId: tab.id,
+      text: show ? String(count) : ""
+    });
+  } catch {
+    // The tab may have closed between query and set; ignore.
+  }
+}
+
+// Refresh the badge on every open tab. Per-tab text overrides the global
+// default, so with a domain set only matching tabs display the counter.
+async function refreshAllBadges(count, domain) {
+  const resolvedCount =
+    typeof count === "number"
+      ? count
+      : (await getHeaders()).filter((h) => h.enabled && h.name).length;
+  const resolvedDomain = typeof domain === "string" ? domain : await getDomain();
+
   await chrome.action.setBadgeBackgroundColor({ color: "#2f81f7" });
+
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(
+    tabs.map((tab) => updateBadgeForTab(tab, resolvedCount, resolvedDomain))
+  );
 }
 
 async function sync() {
   const enabledCount = await rebuildRules();
-  await updateBadge(enabledCount);
+  const domain = await getDomain();
+  await refreshAllBadges(enabledCount, domain);
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -133,3 +193,27 @@ chrome.storage.onChanged.addListener((changes, area) => {
     sync();
   }
 });
+
+// A tab's URL can change (navigation) or a new tab can be shown (activation)
+// without any storage change, so re-evaluate that tab's badge on its own.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url || changeInfo.status === "loading") {
+    refreshBadgeForTabId(tabId);
+  }
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  refreshBadgeForTabId(tabId);
+});
+
+async function refreshBadgeForTabId(tabId) {
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return; // Tab closed.
+  }
+  const count = (await getHeaders()).filter((h) => h.enabled && h.name).length;
+  const domain = await getDomain();
+  await updateBadgeForTab(tab, count, domain);
+}
