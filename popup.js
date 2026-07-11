@@ -122,6 +122,48 @@ function render(headers) {
   }
 }
 
+// Replace the value display with an inline text input. Enter or blur commits
+// the new value; Escape cancels. On commit we persist and re-render so the
+// service worker rebuilds its rules from the updated storage.
+function startEditingValue(valueEl, header, headers) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "header-value-edit";
+  input.value = header.value || "";
+
+  let done = false;
+  const commit = async () => {
+    if (done) return;
+    done = true;
+    const next = input.value;
+    if (next !== header.value) {
+      header.value = next;
+      await saveHeaders(headers);
+    }
+    render(headers);
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    render(headers);
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancel();
+    }
+  });
+  input.addEventListener("blur", commit);
+
+  valueEl.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 function renderRow(header, headers) {
   const li = document.createElement("li");
   li.className = "header-item" + (header.enabled ? "" : " disabled");
@@ -150,11 +192,40 @@ function renderRow(header, headers) {
   nameEl.textContent = header.name;
   const valueEl = document.createElement("div");
   valueEl.className = "header-value";
+  valueEl.dataset.valueFor = String(header.id);
   const isHidden = header.sensitive && !revealed.has(header.id);
   valueEl.textContent = isHidden ? MASK : header.value || "(empty)";
+  // Click the value to edit it in place. A masked sensitive value must be
+  // revealed first (via 👁 or the pencil) — no point editing the dots.
+  if (!isHidden) {
+    valueEl.classList.add("editable");
+    valueEl.title = "Click to edit";
+    valueEl.addEventListener("click", () =>
+      startEditingValue(valueEl, header, headers)
+    );
+  }
   textWrap.append(nameEl, valueEl);
 
   li.append(toggle, textWrap);
+
+  // Edit button: opens the value for in-place editing. For a masked sensitive
+  // value, reveal it first, re-render, then edit the freshly rendered field.
+  const editBtn = document.createElement("button");
+  editBtn.className = "icon-btn";
+  editBtn.type = "button";
+  editBtn.textContent = "✏️";
+  editBtn.title = "Edit value";
+  editBtn.addEventListener("click", () => {
+    if (isHidden) {
+      revealed.add(header.id);
+      render(headers);
+    }
+    const target = listEl.querySelector(
+      `.header-value[data-value-for="${header.id}"]`
+    );
+    if (target) startEditingValue(target, header, headers);
+  });
+  li.appendChild(editBtn);
 
   // Reveal / hide button (only for sensitive headers)
   if (header.sensitive) {
