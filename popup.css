@@ -15,7 +15,7 @@
 }
 
 body {
-  width: 360px;
+  width: 480px;
   margin: 0;
   padding: 12px;
   background: var(--bg);
@@ -28,6 +28,83 @@ body {
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
+}
+
+/* ---- Domain setting ---- */
+.domain-setting {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.domain-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Flatten the bottom corners when expanded so the hover fill ends cleanly
+   above the input instead of bulging into it. */
+.domain-toggle[aria-expanded="true"] {
+  border-radius: 8px 8px 0 0;
+}
+
+.domain-toggle:hover {
+  background: var(--bg-input);
+}
+
+.domain-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.domain-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+}
+
+.domain-chevron {
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.domain-toggle[aria-expanded="true"] .domain-chevron {
+  transform: rotate(90deg);
+}
+
+.domain-body {
+  padding: 8px 10px 10px;
+}
+
+.domain-setting .text-input {
+  width: 100%;
+}
+
+.domain-hint {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.domain-hint code {
+  background: var(--bg-input);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 /* ---- Add form ---- */
