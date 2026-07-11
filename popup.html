@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Mu Header</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Mu Header</h1>
+    </header>
+
+    <form id="add-form" class="add-form" autocomplete="off">
+      <div class="add-row">
+        <input
+          type="text"
+          id="name-input"
+          class="text-input"
+          placeholder="Header name"
+          spellcheck="false"
+          required
+        />
+        <input
+          type="text"
+          id="value-input"
+          class="text-input"
+          placeholder="Value"
+          spellcheck="false"
+        />
+      </div>
+      <div class="add-actions">
+        <label class="sensitive-check">
+          <input type="checkbox" id="sensitive-input" />
+          <span>Sensitive</span>
+        </label>
+        <button type="submit" class="btn-add">Add header</button>
+      </div>
+      <p id="form-error" class="form-error" hidden></p>
+    </form>
+
+    <ul id="header-list" class="header-list"></ul>
+    <p id="empty-state" class="empty-state" hidden>
+      No headers yet. Add one above.
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
