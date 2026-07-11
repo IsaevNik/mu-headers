@@ -11,6 +11,38 @@
       <h1>Mu Header</h1>
     </header>
 
+    <div class="domain-setting">
+      <button
+        type="button"
+        id="domain-toggle"
+        class="domain-toggle"
+        aria-expanded="false"
+        aria-controls="domain-body"
+      >
+        <span class="domain-toggle-label">
+          <span class="domain-dot" id="domain-dot" hidden></span>
+          Restrict to domain
+        </span>
+        <span class="domain-chevron" aria-hidden="true">▸</span>
+      </button>
+      <div class="domain-body" id="domain-body" hidden>
+        <input
+          type="text"
+          id="domain-input"
+          class="text-input"
+          placeholder="e.g. example.com, *.example.com, localhost:8000 (blank = all)"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <p id="domain-error" class="form-error" hidden></p>
+        <p class="domain-hint">
+          Applies to all headers. Leave blank to send to every site.
+          Use <code>*.example.com</code> for subdomains, or add a port like
+          <code>localhost:8000</code>.
+        </p>
+      </div>
+    </div>
+
     <form id="add-form" class="add-form" autocomplete="off">
       <div class="add-row">
         <input

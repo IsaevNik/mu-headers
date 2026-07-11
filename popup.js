@@ -3,10 +3,46 @@
 
 const STORAGE_KEY = "headers";
 const NEXT_ID_KEY = "nextId";
+const DOMAIN_KEY = "domain";
 const MASK = "••••••••";
 
 // Valid HTTP header field name per RFC 7230 (token characters).
 const HEADER_NAME_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
+// Host part of a domain filter. Accepts a single label (e.g. "localhost"),
+// a dotted host (e.g. "example.com"), or an IPv4 address (e.g. "127.0.0.1").
+// Each label may contain letters, digits and hyphens, but not lead/trail a hyphen.
+const HOST_RE = /^(?!-)[A-Za-z0-9-]+(?<!-)(\.(?!-)[A-Za-z0-9-]+(?<!-))*$/;
+
+// Split a domain filter into its host and optional port. Returns
+// { host, port } where port is "" when none was given.
+function splitDomain(value) {
+  const colon = value.lastIndexOf(":");
+  if (colon === -1) return { host: value, port: "" };
+  return { host: value.slice(0, colon), port: value.slice(colon + 1) };
+}
+
+// Validate the domain input. Returns an error message string, or "" if valid.
+// Accepts: blank, host, host:port, *.host, *.host:port. Host may be a single
+// label (localhost), a dotted name (example.com), or an IPv4 address.
+function validateDomain(raw) {
+  const value = raw.trim();
+  if (value === "") return "";
+
+  const { host, port } = splitDomain(value);
+  const bareHost = host.startsWith("*.") ? host.slice(2) : host;
+
+  if (!HOST_RE.test(bareHost)) {
+    return "Enter a domain like example.com, *.example.com or localhost:8000.";
+  }
+  if (port !== "" && !/^\d{1,5}$/.test(port)) {
+    return "Port must be a number, e.g. localhost:8000.";
+  }
+  if (port !== "" && Number(port) > 65535) {
+    return "Port must be between 1 and 65535.";
+  }
+  return "";
+}
 
 const listEl = document.getElementById("header-list");
 const emptyEl = document.getElementById("empty-state");
@@ -15,6 +51,11 @@ const nameInput = document.getElementById("name-input");
 const valueInput = document.getElementById("value-input");
 const sensitiveInput = document.getElementById("sensitive-input");
 const errorEl = document.getElementById("form-error");
+const domainInput = document.getElementById("domain-input");
+const domainErrorEl = document.getElementById("domain-error");
+const domainToggle = document.getElementById("domain-toggle");
+const domainBody = document.getElementById("domain-body");
+const domainDot = document.getElementById("domain-dot");
 
 // Tracks which sensitive rows are currently revealed (in-memory, resets on close).
 const revealed = new Set();
@@ -25,6 +66,30 @@ async function loadHeaders() {
     headers: Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [],
     nextId: typeof data[NEXT_ID_KEY] === "number" ? data[NEXT_ID_KEY] : 1
   };
+}
+
+async function loadDomain() {
+  const data = await chrome.storage.local.get(DOMAIN_KEY);
+  return typeof data[DOMAIN_KEY] === "string" ? data[DOMAIN_KEY] : "";
+}
+
+async function saveDomain(domain) {
+  await chrome.storage.local.set({ [DOMAIN_KEY]: domain });
+}
+
+// Show the red marker only when a restriction is active (non-blank domain).
+function updateDomainDot(domain) {
+  const active = domain.trim() !== "";
+  domainDot.hidden = !active;
+  domainToggle.title = active
+    ? `Restricted to ${domain.trim()}`
+    : "Not restricted (sent to all sites)";
+}
+
+// Expand/collapse the domain setting body.
+function setDomainExpanded(expanded) {
+  domainToggle.setAttribute("aria-expanded", String(expanded));
+  domainBody.hidden = !expanded;
 }
 
 async function saveHeaders(headers, nextId) {
@@ -128,6 +193,32 @@ function renderRow(header, headers) {
 async function init() {
   const { headers } = await loadHeaders();
   render(headers);
+
+  const currentDomain = await loadDomain();
+  domainInput.value = currentDomain;
+  updateDomainDot(currentDomain);
+
+  // Start expanded if a restriction is already set, so it's not hidden.
+  if (currentDomain !== "") setDomainExpanded(true);
+
+  domainToggle.addEventListener("click", () => {
+    setDomainExpanded(domainToggle.getAttribute("aria-expanded") !== "true");
+  });
+
+  // Persist the domain as the user types, only when it is valid. Invalid
+  // input shows an inline error and is not saved (last valid value stays).
+  domainInput.addEventListener("input", async () => {
+    const raw = domainInput.value;
+    const err = validateDomain(raw);
+    if (err) {
+      domainErrorEl.textContent = err;
+      domainErrorEl.hidden = false;
+      return;
+    }
+    domainErrorEl.hidden = true;
+    updateDomainDot(raw.trim());
+    await saveDomain(raw.trim());
+  });
 
   formEl.addEventListener("submit", async (e) => {
     e.preventDefault();

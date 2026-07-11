@@ -7,6 +7,10 @@ step, no dependencies.
 ## Features
 
 - Add custom request headers (name + value).
+- Optional **domain restriction** (one setting for all headers): leave blank to send
+  to every site, enter `example.com` to match that host exactly, `*.example.com` to
+  match its subdomains, or add a port (`localhost:8000`, `127.0.0.1:8001`) to match a
+  single host+port.
 - Per-header **on/off toggle**.
 - Mark a value as **sensitive** — it renders masked (`••••••••`) and can be revealed
   temporarily by clicking the 👁 button.
@@ -14,8 +18,9 @@ step, no dependencies.
 - **Badge** on the toolbar icon showing how many headers are currently enabled.
 - Dark-themed popup.
 
-Headers apply globally: every site, every tab, and every request type (page loads,
-XHR/fetch, scripts, images, etc.).
+By default headers apply globally: every site, every tab, and every request type (page
+loads, XHR/fetch, scripts, images, etc.). Set the **Restrict to domain** field to limit
+them to a single domain (with optional `*.` wildcard for subdomains).
 
 ## Install (load unpacked)
 
